@@ -19,6 +19,7 @@ typedef struct Engine
 	lua_State *L;
 		
 	// Window stuff
+	i32 width, height;
 	bool is_on;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -41,6 +42,10 @@ typedef struct Engine
 	i32 n_sounds;
 	Mix_Music *tracks[MAX_TRACKS];
 	i32 n_tracks;
+
+	// Camera
+	f32 camera_x, camera_y;
+	f32 camera_zoom;
 } Engine;
 
 // Runs the lua script which is responsible for calling init(title, width, height, ups) and defining the following functions:

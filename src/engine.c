@@ -1,6 +1,8 @@
 #include "engine.h"
 
-// TODO implement unfinished functions
+// TODO use vec2 types for positions and such
+// TODO rename camera_zoom to camera_z
+// TODO add collisions
 
 // Global engine
 static Engine gEngine;
@@ -111,13 +113,16 @@ static i32 drawRectangle(lua_State *L);
 // Extra notes: color is a table containing the fields {r, g, b, a} each in the range [0.0, 1.0], point is a table containing the fields {x, y}
 static i32 drawLine(lua_State *L);
 
-// TODO
 // Lua function
 // Description: sets a camera to render from
 // Args: (point position, float zoom)
 // Returns: Nothing
 // Extra notes: point is a table containing the fields {x, y}, zoom indicates how much to multiply the size of objects (1.0 = 1x, 0.5 = 0.5x, 2.5 = 2.5x)
 static i32 setCamera(lua_State *L);
+
+// Helper functions for transforming points based on camera position and zoom
+static f32 cameraTransformX(f32 x);
+static f32 cameraTransformY(f32 y);
 
 // Lua function
 // Description: starts a real-time timer
@@ -265,7 +270,9 @@ static i32 init(lua_State *L)
 		return 1;
 	}
 
-	gEngine.window = SDL_CreateWindow(lua_tostring(L, 1), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, lua_tointeger(L, 2), lua_tointeger(L, 3), 0);
+	gEngine.width = lua_tointeger(L, 2);
+	gEngine.height = lua_tointeger(L, 3);
+	gEngine.window = SDL_CreateWindow(lua_tostring(L, 1), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gEngine.width, gEngine.height, 0);
 	if (!gEngine.window)
 	{
 		Mix_CloseAudio();
@@ -300,6 +307,10 @@ static i32 init(lua_State *L)
 
 	SDL_SetRenderDrawBlendMode(gEngine.renderer, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderDrawColor(gEngine.renderer, 0, 0, 0, 255);
+
+	gEngine.camera_x = 0.f;
+	gEngine.camera_y = 0.f;
+	gEngine.camera_zoom = 1.f;
 
 	gEngine.is_on = true;
 	lua_pushboolean(gEngine.L, true);
@@ -377,6 +388,11 @@ static i32 drawSprite(lua_State *L)
 	lua_getfield(L, 3, "h");
 	destination.h = lua_tonumber(L, -1);
 	lua_pop(L, 1);
+
+	destination.x = cameraTransformX(destination.x);
+	destination.y = cameraTransformY(destination.y);
+	destination.w /= gEngine.camera_zoom;
+	destination.h /= gEngine.camera_zoom;
 
 	SDL_RenderCopyF(gEngine.renderer, gEngine.textures[texture_id], &source, &destination);
 	return 0;
@@ -524,6 +540,11 @@ static i32 drawRectangle(lua_State *L)
 	rect.h = lua_tonumber(L, -1);
 	lua_pop(L, 1);
 
+	rect.x = cameraTransformX(rect.x);
+	rect.y = cameraTransformX(rect.y);
+	rect.w /= gEngine.camera_zoom;
+	rect.h /= gEngine.camera_zoom;
+
 	SDL_SetRenderDrawColor(gEngine.renderer, color.r, color.g, color.b, color.a);
 	SDL_RenderDrawRectF(gEngine.renderer, &rect);
 	return 0;
@@ -565,20 +586,31 @@ static i32 drawLine(lua_State *L)
 	lua_pop(L, 1);
 	
 	SDL_SetRenderDrawColor(gEngine.renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderDrawLineF(gEngine.renderer, p1.x, p1.y, p2.x, p2.y);
+	SDL_RenderDrawLineF(gEngine.renderer, cameraTransformX(p1.x), cameraTransformY(p1.y), cameraTransformX(p2.x), cameraTransformY(p2.y));
 	return 0;
 }
 
-// TODO
-// Lua function
-// Description: sets a camera to render from
-// Args: (point position, float zoom)
-// Returns: Nothing
-// Extra notes: point is a table containing the fields {x, y}, zoom indicates how much to multiply the size of objects (1.0 = 1x, 0.5 = 0.5x, 2.5 = 2.5x)
 static i32 setCamera(lua_State *L)
 {
-	(void)L;
+	lua_getfield(L, 1, "x");
+	gEngine.camera_x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "y");
+	gEngine.camera_y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	gEngine.camera_zoom = 1.f/lua_tonumber(L, 2);
+	
 	return 0;
+}
+
+static f32 cameraTransformX(f32 x)
+{
+	return (x - gEngine.camera_x)/gEngine.camera_zoom + gEngine.width/2.f;
+}
+
+static f32 cameraTransformY(f32 y)
+{
+	return (y - gEngine.camera_y)/gEngine.camera_zoom + gEngine.height/2.f;
 }
 
 static i32 startRealTimer(lua_State *L)
