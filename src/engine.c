@@ -496,8 +496,8 @@ static i32 getMousePosition(lua_State *L)
 {
 	i32 x, y;
 	SDL_GetMouseState(&x, &y);
-	lua_pushinteger(L, x);
-	lua_pushinteger(L, y);
+	lua_pushinteger(L, x - gEngine.width/2);
+	lua_pushinteger(L, y - gEngine.height/2);
 	return 2;
 }
 
