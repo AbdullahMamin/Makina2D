@@ -23,7 +23,7 @@ clean:
 
 package: clean
 	rm project.7z
-	7z a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on project.7z src Makefile
+	7z a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on project.7z src example Makefile
 	
 $(OUTPUT): $(OBJECTS)
 	$(CC) $(CCFLAGS) $(ERRFLAGS) $(OPT) $^ -o $@ $(LIBS)
