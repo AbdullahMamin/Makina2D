@@ -1,5 +1,7 @@
 #include "engine.h"
 
+// TODO make own rectangle class (don't use SDL's)
+// TODO make proper color struct
 // TODO use vec2 types for positions and such
 // TODO rename camera_zoom to camera_z
 // TODO add collisions
@@ -148,6 +150,13 @@ static i32 isRealTimerFinished(lua_State *L);
 // Returns: true if finished, false if not
 static i32 isFrameTimerFinished(lua_State *L);
 
+// TODO
+// Lua function
+// Description: swept aabb collision
+// Args: (rect box_before, point displacement, rect static_box)
+// Returns: (bool collided, float t, float normal_x, float normal_y)
+static i32 isRectVsRect(lua_State *L);
+
 // Cleans up engine resources
 static void close(void);
 
@@ -182,6 +191,7 @@ bool runScript(const char *script_path)
 	lua_register(gEngine.L, "startFrameTimer", startFrameTimer);
 	lua_register(gEngine.L, "isRealTimerFinished", isRealTimerFinished);
 	lua_register(gEngine.L, "isFrameTimerFinished", isFrameTimerFinished);
+	lua_register(gEngine.L, "isRectVsRect", isRectVsRect);
 	
 	if (luaL_dofile(gEngine.L, script_path) != LUA_OK)
 	{
@@ -553,7 +563,7 @@ static i32 drawRectangle(lua_State *L)
 static i32 drawLine(lua_State *L)
 {
 	struct {u8 r, g, b, a;} color;
-	struct {f32 x, y;} p1, p2;
+	vec2 p1, p2;
 
 	// reading color
 	lua_getfield(L, 1, "r");
@@ -641,6 +651,131 @@ static i32 isFrameTimerFinished(lua_State *L)
 	f64 timer = lua_tonumber(L, 1);
 	lua_pushboolean(L, gEngine.current_frame >= timer);
 	return 1;
+}
+
+static i32 isRectVsRect(lua_State *L)
+{
+	SDL_FRect rect, static_rect;
+	vec2 displacement;
+
+	lua_getfield(L, 1, "x");
+	rect.x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "y");
+	rect.y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "w");
+	rect.w = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "h");
+	rect.h = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "x");
+	displacement.x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "y");
+	displacement.y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "x");
+	static_rect.x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 3, "y");
+	static_rect.y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 3, "w");
+	static_rect.w = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 3, "h");
+	static_rect.h = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	vec2 p1 = (vec2){rect.x, rect.y};
+	// expanding static box
+	static_rect.x -= rect.w;
+	static_rect.y -= rect.h;
+	static_rect.w += rect.w;
+	static_rect.h += rect.h;
+
+	vec2 static_rect_p = (vec2){static_rect.x, static_rect.y};
+	vec2 static_rect_size = (vec2){static_rect.w, static_rect.h};
+
+	vec2 t_near = vec2Divide(vec2Subtract(static_rect_p, p1), displacement);
+	vec2 t_far = vec2Divide(vec2Subtract(vec2Add(static_rect_p, static_rect_size), p1), displacement);
+
+	if (isnan(t_far.y) || isnan(t_far.x) || isnan(t_near.y) || isnan(t_near.x))
+	{
+		lua_pushboolean(L, false);
+		lua_pushnil(L);
+		lua_pushnil(L);
+		lua_pushnil(L);
+		return 4;
+	}
+	
+	if (t_far.x < t_near.x)
+	{
+		f32 temp = t_near.x;
+		t_near.x = t_far.x;
+		t_far.x = temp;
+	}
+	if (t_far.y < t_near.y)
+	{
+		f32 temp = t_near.y;
+		t_near.y = t_far.y;
+		t_far.y = temp;
+	}
+
+	if (t_near.x > t_far.y || t_near.y > t_far.x)
+	{
+		lua_pushboolean(L, false);
+		lua_pushnil(L);
+		lua_pushnil(L);
+		lua_pushnil(L);
+		return 4;
+	}
+
+	f32 t_n = (t_near.x > t_near.y) ? t_near.x : t_near.y;
+	f32 t_f = (t_far.x < t_far.y) ? t_far.x : t_far.y;
+	
+	if (t_f < 0.f)
+	{
+		lua_pushboolean(L, false);
+		lua_pushnil(L);
+		lua_pushnil(L);
+		lua_pushnil(L);
+		return 4;
+	}
+
+	vec2 normal = (vec2){0.f, 0.f};
+	if (t_near.x > t_near.y)
+	{
+		if (displacement.x < 0.f)
+		{
+			normal = (vec2){1.f, 0.f};
+		}
+		else
+		{
+			normal = (vec2){-1.f, 0.f};
+		}
+	}
+	else if (t_near.x < t_near.y)
+	{
+		if (displacement.y < 0.f)
+		{
+			normal = (vec2){0.f, 1.f};
+		}
+		else
+		{
+			normal = (vec2){0.f, -1.f};
+		}
+	}
+
+	lua_pushboolean(L, true);
+	lua_pushnumber(L , t_n);
+	lua_pushnumber(L , normal.x);
+	lua_pushnumber(L , normal.y);
+	return 4;
 }
 
 static void close(void)

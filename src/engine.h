@@ -7,7 +7,7 @@
 #include <lua5.4/lua.h>
 #include <lua5.4/lauxlib.h>
 #include <lua5.4/lualib.h>
-#include "types.h"
+#include "vector.h"
 
 #define MAX_TEXTURES (64)
 #define MAX_SOUNDS (64)
