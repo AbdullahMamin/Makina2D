@@ -109,6 +109,13 @@ static i32 isMouseButtonDown(lua_State *L);
 static i32 drawRectangle(lua_State *L);
 
 // Lua function
+// Description: draws a filled rectangle
+// Args: (color color, rect rect)
+// Returns: Nothing
+// Extra notes: color is a table containing the fields {r, g, b, a} each in the range [0.0, 1.0], rect is a table containing the fields {x, y, w, h}
+static i32 drawFilledRectangle(lua_State *L);
+
+// Lua function
 // Description: draws a line
 // Args: (color color, point p1, point p2)
 // Returns: Nothing
@@ -150,12 +157,17 @@ static i32 isRealTimerFinished(lua_State *L);
 // Returns: true if finished, false if not
 static i32 isFrameTimerFinished(lua_State *L);
 
-// TODO
 // Lua function
 // Description: swept aabb collision
 // Args: (rect box_before, point displacement, rect static_box)
 // Returns: (bool collided, float t, float normal_x, float normal_y)
-static i32 isRectVsRect(lua_State *L);
+static i32 sweptAABB(lua_State *L);
+
+// Lua function
+// Description: normal aabb collision
+// Args: (rect box1, rect box2)
+// Returns: (bool collided)
+static i32 normalAABB(lua_State *L);
 
 // Cleans up engine resources
 static void close(void);
@@ -185,13 +197,15 @@ bool runScript(const char *script_path)
 	lua_register(gEngine.L, "getMousePosition", getMousePosition);
 	lua_register(gEngine.L, "isMouseButtonDown", isMouseButtonDown);
 	lua_register(gEngine.L, "drawRectangle", drawRectangle);
+	lua_register(gEngine.L, "drawFilledRectangle", drawFilledRectangle);
 	lua_register(gEngine.L, "drawLine", drawLine);
 	lua_register(gEngine.L, "setCamera", setCamera);
 	lua_register(gEngine.L, "startRealTimer", startRealTimer);
 	lua_register(gEngine.L, "startFrameTimer", startFrameTimer);
 	lua_register(gEngine.L, "isRealTimerFinished", isRealTimerFinished);
 	lua_register(gEngine.L, "isFrameTimerFinished", isFrameTimerFinished);
-	lua_register(gEngine.L, "isRectVsRect", isRectVsRect);
+	lua_register(gEngine.L, "sweptAABB", sweptAABB);
+	lua_register(gEngine.L, "normalAABB", normalAABB);
 	
 	if (luaL_dofile(gEngine.L, script_path) != LUA_OK)
 	{
@@ -551,12 +565,55 @@ static i32 drawRectangle(lua_State *L)
 	lua_pop(L, 1);
 
 	rect.x = cameraTransformX(rect.x);
-	rect.y = cameraTransformX(rect.y);
+	rect.y = cameraTransformY(rect.y);
 	rect.w /= gEngine.camera_zoom;
 	rect.h /= gEngine.camera_zoom;
 
 	SDL_SetRenderDrawColor(gEngine.renderer, color.r, color.g, color.b, color.a);
 	SDL_RenderDrawRectF(gEngine.renderer, &rect);
+	return 0;
+}
+
+static i32 drawFilledRectangle(lua_State *L)
+{
+	struct {u8 r, g, b, a;} color;
+	SDL_FRect rect;
+
+	// reading color
+	lua_getfield(L, 1, "r");
+	color.r = 255*lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "g");
+	color.g = 255*lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "b");
+	color.b = 255*lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "a");
+	color.a = 255*lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	// reading rect
+	lua_getfield(L, 2, "x");
+	rect.x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "y");
+	rect.y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "w");
+	rect.w = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "h");
+	rect.h = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	rect.x = cameraTransformX(rect.x);
+	rect.y = cameraTransformY(rect.y);
+	rect.w /= gEngine.camera_zoom;
+	rect.h /= gEngine.camera_zoom;
+
+	SDL_SetRenderDrawColor(gEngine.renderer, color.r, color.g, color.b, color.a);
+	SDL_RenderFillRectF(gEngine.renderer, &rect);
 	return 0;
 }
 
@@ -653,7 +710,7 @@ static i32 isFrameTimerFinished(lua_State *L)
 	return 1;
 }
 
-static i32 isRectVsRect(lua_State *L)
+static i32 sweptAABB(lua_State *L)
 {
 	SDL_FRect rect, static_rect;
 	vec2 displacement;
@@ -776,6 +833,40 @@ static i32 isRectVsRect(lua_State *L)
 	lua_pushnumber(L , normal.x);
 	lua_pushnumber(L , normal.y);
 	return 4;
+}
+
+static i32 normalAABB(lua_State *L)
+{
+	SDL_FRect rect1, rect2;
+
+	lua_getfield(L, 1, "x");
+	rect1.x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "y");
+	rect1.y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "w");
+	rect1.w = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 1, "h");
+	rect1.h = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "x");
+	rect2.x = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "y");
+	rect2.y = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "w");
+	rect2.w = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "h");
+	rect2.h = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_pushboolean(L, !((rect1.x + rect1.w < rect2.x) || (rect1.x > rect2.x + rect2.w) || (rect1.y + rect1.h < rect2.y) || (rect1.y > rect2.y + rect2.h)));
+	return 1;
 }
 
 static void close(void)
