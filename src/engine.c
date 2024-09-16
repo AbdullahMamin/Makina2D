@@ -29,7 +29,7 @@ static i32 loadTexture(lua_State *L);
 
 // Lua function
 // Description: draws a sprite
-// Args: (int texture_id, rect source, rect table)
+// Args: (int texture_id, rect source, rect destination)
 // Returns: Nothing
 // Extra notes: rect is a table containing the fields {x, y, w, h}
 static i32 drawSprite(lua_State *L);
