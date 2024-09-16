@@ -1,4 +1,4 @@
-Vec = {}
+local Vec = {}
 Vec.__index = Vec
 
 function Vec.new(x, y)
@@ -16,22 +16,16 @@ function Vec:subtract(v)
 	return Vec.new(self.x - v.x, self.y - v.y)
 end
 
-function Vec:multiply(v)
-	return Vec.new(self.x*v.x, self.y*v.y)
-end
-
-function Vec:divide(v)
-	return Vec.new(self.x/v.x, self.y/v.y)
+function Vec:scale(s)
+	return Vec.new(self.x*s, self.y*s)
 end
 
 function Vec:magnitude(v)
-	return (v.x*v.x + v.y*v.y)^0.5
+	return (self.x*self.x + self.y*self.y)^0.5
 end
 
-function Vec:scale(s)
-	return Vec.new(s*v.x, s*v.y)
+function Vec:normalize(v)
+	return self:scale(1/self:magnitude())
 end
 
-function Vec:dot(v)
-	return self.x*v.x + self.y*v.y
-end
+return Vec
