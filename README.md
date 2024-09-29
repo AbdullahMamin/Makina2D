@@ -6,7 +6,7 @@ This project has the following dependencies: SDL2, SDL2_image, SDL2_mixer, and t
 Simply compile all the sources and link against these libraries. The makefile provided works on linux and may need slight changes to work on other platforms.
 
 ## Documentation
-The different functions, and how to use them are all located in engine.h and are all marked as "lua function"
+The different functions, and how to use them are all located in engine.c and are all marked as "lua function"
 
 ## Usage
 To use the engine, go into the directory of your game project, and run the engine executable with the argument being the main.lua file where the onInit, update, and draw functions are defined.
