@@ -1,6 +1,8 @@
 # Makina2D
 Game engine, which I use for my own projects, written in C with scripting in lua.
 
+![Game example](assets/makina-example.gif)
+
 ## Build
 This project has the following dependencies: SDL2, SDL2_image, SDL2_mixer, and the lua5.4 library.
 Simply compile all the sources and link against these libraries. The makefile provided works on linux and may need slight changes to work on other platforms.
